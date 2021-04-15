@@ -5,24 +5,24 @@
 # Aluno: Vinícius Kenzo Fukace
 # RA: 115672
 
-from typing import Deque, List, Union
-from collections import deque
+from typing import List, TextIO, Union
 
+# TODO: guardar todas as instruções na memória no começo da execução
+# Ordem dos estagios está errada, o certo tá na avaliação no drive
 
 # Definição de Dados
 
+
 class Instrucao:
     def __init__(self, strInstrucao: str) -> None:
-        strInstrucao = strInstrucao.split(' ')
+        strInstrucao = strInstrucao.partition(' ')
         self.opcode: str = strInstrucao[0]
 
         self.operandos: List[str] = []
-        for operando in strInstrucao[1:]:
-            if operando.endswith(','):
-                self.operandos.append(operando[:-1])
-            else:
-                self.operandos.append(operando)
-        self.valores = [0] * len(self.operandos)
+        strInstrucao = strInstrucao[2].split(',')
+        for operando in strInstrucao:
+            self.operandos.append(operando.strip())
+        self.valores: List[int] = [0] * len(self.operandos)
 
     def toString(self) -> str:
         return self.opcode + ' ' + ', '.join(self.operandos)
@@ -34,11 +34,11 @@ class Pipeline:
         # será usada uma Instrucao.
         # Caso um estágio estiver sem instruções, será usado None
         self.estagios: List[str] = []
-        self.estagios.append('Busca de Instrução')
-        self.estagios.append('Decodificação de Instrução')
-        self.estagios.append('Acesso a Memória')
+        self.estagios.append('Busca')
+        self.estagios.append('Decodificação')
         self.estagios.append('Execução')
-        self.estagios.append('Escrita do Resultado')
+        self.estagios.append('Acesso Memória')
+        self.estagios.append('Escrita Resultado')
 
         self.instr: List[Union[Instrucao, str, None]]
         self.instr = [None] * len(self.estagios)
@@ -49,16 +49,16 @@ class Pipeline:
         print('\n\tPipeline ============================================')
         for i in range(len(self.estagios)):
             if type(self.instr[i]) is Instrucao:
-                print(self.estagios[i] + ': ' + self.instr[i].toString())
+                print(f"{self.estagios[i]:>20}: {self.instr[i].toString()}")
             elif type(self.instr[i]) is str:
-                print(self.estagios[i] + ': ' + self.instr[i])
+                print(f"{self.estagios[i]:>20}: {self.instr[i]}")
             else:
-                print(self.estagios[i] + ': -')
+                print(f"{self.estagios[i]:>20}: -")
 
-    # Redefine todas as instruções na pipeline como None
-    def reset(self):
-        for estagio in self.estagios:
-            estagio[1] = None
+    # Redefine as instruções de busca e decodificação na pipeline como None
+    def resetJump(self):
+        self.estagios[0] = None
+        self.estagios[1] = None
 
 
 class Processador:
@@ -70,23 +70,29 @@ class Processador:
 
         # PC – Contador de programa;
         # SP – Ponteiro de pilha;
-        # RA – Endereço de retorno;
-        self.pc: int = None
-        self.sp: int = None
-        self.ra: int = None
+        self.pc: int = 0
+        self.sp: int = 0
 
 
 class Memoria:
-    def __init__(self) -> None:
+    # TODO: Inicia a memória com todas as instruções em arq
+    def __init__(self, arq: TextIO) -> None:
         self.dados: List[int] = [0]*2048
-        self.instrucoes: Deque[str] = deque([])
+        self.instrucoes: List[str] = []
+        for linha in arq:
+            self.instrucoes.append(linha.rstrip())
 
 
 class Simulador:
-    def __init__(self) -> None:
+    # Inicia o simulador usando o arquivo que contém o conjunto de instruções
+    def __init__(self, arq: TextIO) -> None:
         self.pro = Processador()
-        self.mem = Memoria()
+        self.mem = Memoria(arq)
         self.hazard: int = -1
+
+        if self.mem.instrucoes:
+            self.pro.pipeline.instr[0] = self.mem.instrucoes[0]
+            self.pro.pc = 1
 
         self.opsAritmetica: List[str] = [
             'add', 'addi', 'sub', 'subi', 'mul', 'div']
@@ -95,24 +101,42 @@ class Simulador:
         self.opsMovimentacao: List[str] = ['mov', 'movi']
 
     # Faz a busca de instrução.
-    def __buscaInst(self) -> bool:
-        pass
+    def __buscaInst(self) -> None:
+        self.pro.pipeline.instr[1] = self.pro.pipeline.instr[0]
+        if self.pro.pc < len(self.mem.instrucoes):
+            self.pro.pipeline.instr[0] = self.mem.instrucoes[self.pro.pc]
+            self.pro.pc += 1
+        else:
+            self.pro.pipeline.instr[0] = None
 
     # Faz a decodificação de instrução.
-    def __decoInst(self) -> bool:
-        pass
-
-    # Faz o acesso a memória.
-    def __acessoMem(self) -> bool:
-        pass
+    def __decoInst(self) -> None:
+        if self.pro.pipeline.instr[1] is None:
+            self.pro.pipeline.instr[2] = None
+        else:
+            self.pro.pipeline.instr[2] = Instrucao(self.pro.pipeline.instr[1])
 
     # Faz a execução da instrução.
-    def __execucao(self) -> bool:
-        pass
+    def __execucao(self) -> None:
+        if self.pro.pipeline.instr[2] is None:
+            self.pro.pipeline.instr[3] = None
+        else:
+            # TODO: switch com tudo essas porra
+            pass
+
+    # Faz o acesso a memória.
+    def __acessoMem(self) -> None:
+        if self.pro.pipeline.instr[3] is None:
+            self.pro.pipeline.instr[4] = None
+        else:
+            # TODO: selecionar os que escrevem coisas na memoria
+            pass
 
     # Faz a escrita do resultado nos registradores.
-    def __escritaRes(self) -> bool:
-        pass
+    def __escritaRes(self) -> None:
+        if self.pro.pipeline.instr[4] is Instrucao:
+            # TODO: Selecionar os que escrevem coisas em registrador
+            pass
 
     # Veirfica a existência de hazards de dados na pipeline.
     # Se houver hazard, guarda o índice do estágio em que se encontra o hazard
@@ -120,54 +144,65 @@ class Simulador:
     # Caso contrário, guarda -1 em self.hazard e retorna False.
     def __existeHazard(self) -> int:
         # Verifica somente a instrução no estágio de decodificação, pois a
-        # leitura de operandos é feita somente no estágio de acesso à memória
-        inst: Instrucao = self.pro.pipeline.instr[1]
-        if inst.opcode is 'blt' or inst.opcode is 'bgt' or inst.opcode is 'beq':
-            pass  # TODO
-        else:
+        # leitura de operandos é feita somente no estágio de execução
+        inst: Instrucao = Instrucao(self.pro.pipeline.instr[1])
+
+        if inst.opcode != 'j' and inst.opcode != 'jal':
+            # Para cada estágio após o de decodificação
             for i in range(2, len(self.pro.pipeline.estagios)):
                 if type(self.pro.pipeline.instr[i]) is Instrucao:
-                    if inst.operandos[0] == self.pro.pipeline.instr[i].operandos[0]:
+                    # Se o primeiro operando da inst está nesse estágio (RAW, WAW)
+                    if inst.operandos[0] in self.pro.pipeline.instr[i].operandos:
                         self.hazard = i
                         return True
+                    # Se o primeiro operando desse estágio está em inst (WAR)
+                    if self.pro.pipeline.instr[i].operandos[0] in inst.operandos:
+                        self.hazard = i
+                        return True
+
         self.hazard = -1
         return False
 
-    # Avança o estado da execução, inserindo novaInstr na pipeline
-    # Caso haja um hazard de dados, retorna False
-    # Caso contrário, retorna True
-    def avanca(self, novaInstr) -> bool:
+    # Avança o estado da execução.
+    # Caso não haja hazard de dados, insere uma nova instrução na pipeline
+    # e retorna True.
+    # Caso contrário, retorna False.
+    def avanca(self) -> bool:
         # Se não existe hazard
         if self.hazard == -1:
-            # insere novaInstr
-            # Executa coisas
+            self.__escritaRes()
+            self.__acessoMem()
+            self.__execucao()
+            self.__decoInst()
+            self.__buscaInst()
+
             self.__existeHazard()
         else:
-            if self.hazard <= 3:
-                self.__escritaRes()
-                self.hazard = -1
+            self.__escritaRes()
+            self.__acessoMem()
+            self.__execucao()
 
-            if self.hazard <= 2:
-                self.__execucao()
+            if self.hazard == 4:
+                self.hazard = -1
+            else:
                 self.hazard += 1
 
 
 # Função Principal
-
-
 def main():
-    # try:
-    #     instrucoes = open("instrucoes.txt", mode='rt', encoding='utf-8')
-    #     for linha in instrucoes:
-    #         print(linha)
-    # finally:
-    #     instrucoes.close()
+    try:
+        instrucoes = open("instrucoes.txt", mode='rt', encoding='utf-8')
+        sim: Simulador = Simulador(instrucoes)
+    finally:
+        instrucoes.close()
 
-    stringTeste = 'add rax, rbx, rcx'
-    instrucaoTeste = Instrucao(stringTeste)
-    print(instrucaoTeste.toString())
     exit
 
+
+# Teste
+stringTeste = 'add rax, rbx, rcx'
+instrucaoTeste = Instrucao(stringTeste)
+print(instrucaoTeste.toString())
 
 if __name__ == '__main__':
     main()

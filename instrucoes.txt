@@ -1,0 +1,9 @@
+movi r0, 15
+movi r1, 4
+movi r2, 2
+add r1, r1, r2
+addi r2, r2, 2
+subi r1, r1, 1
+blt r1, r0, 3
+movi r3, 2
+mul r1, r1, r3 
