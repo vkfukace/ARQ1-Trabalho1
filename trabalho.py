@@ -389,14 +389,6 @@ def main():
 
     finally:
         instrucoes.close()
-    exit
-
-
-# Teste
-stringTeste = 'add rax, rbx, rcx'
-instrucaoTeste = Instrucao(stringTeste)
-print(instrucaoTeste.string)
-instrucaoTeste = Instrucao('lw r13, 8(r2)')
 
 
 if __name__ == '__main__':
