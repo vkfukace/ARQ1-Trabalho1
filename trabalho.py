@@ -7,9 +7,6 @@
 
 from typing import List, TextIO, Union, Dict
 
-# TODO: guardar todas as instruções na memória no começo da execução
-# Ordem dos estagios está errada, o certo tá na avaliação no drive
-
 # Definição de Dados
 
 
@@ -107,7 +104,6 @@ class Memoria:
             self.instrucoes.append(linha.rstrip())
 
     def printEstado(self):
-        # TODO
         txt: str = f''
         cont: int = 0
         i: int = 0
@@ -234,8 +230,6 @@ class Simulador:
     # Faz a escrita do resultado nos registradores.
     def __escritaRes(self) -> None:
         if type(self.pro.pipeline.instr[4]) is Instrucao:
-            # TODO: Selecionar os que escrevem coisas em registrador
-            # TODO: Switch case???
             if self.pro.pipeline.instr[4].opcode == 'add':
                 self.add(self.pro.pipeline.instr[4])
             elif self.pro.pipeline.instr[4].opcode == 'addi':
@@ -260,7 +254,6 @@ class Simulador:
     # Faz o acesso a memória.
     def __acessoMem(self) -> None:
         if type(self.pro.pipeline.instr[3]) is Instrucao:
-            # TODO: selecionar os que escrevem coisas na memoria
             if self.pro.pipeline.instr[3].opcode == 'sw':
                 self.sw(self.pro.pipeline.instr[3])
 
@@ -270,7 +263,6 @@ class Simulador:
     # Faz a execução da instrução.
     def __execucao(self) -> None:
         if type(self.pro.pipeline.instr[2]) is Instrucao:
-            # TODO: switch com tudo essas porra
             if self.pro.pipeline.instr[2].opcode == 'blt':
                 self.blt(self.pro.pipeline.instr[2])
             elif self.pro.pipeline.instr[2].opcode == 'bgt':
@@ -311,7 +303,7 @@ class Simulador:
     # Se houver hazard, guarda o índice do estágio em que se encontra o hazard
     # em self.hazard e retorna True.
     # Caso contrário, guarda -1 em self.hazard e retorna False.
-    def __existeHazard(self) -> int:
+    def __existeHazard(self) -> bool:
         # Verifica somente a instrução no estágio de decodificação, pois a
         # leitura de operandos é feita somente no estágio de execução
         if type(self.pro.pipeline.instr[1]) is str:
