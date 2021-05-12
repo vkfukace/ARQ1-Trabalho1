@@ -86,7 +86,7 @@ class Processador:
     # Exibe os valores armazenados em cada um dos registradores na tela.
     def printEstado(self):
         txt: str = f''
-        print(f"\nRegistradores =================================================")
+        print(f"\nRegistradores ============================================")
         for i in range(4):
             for j in range(8):
                 chave: str = f'r{8*i+j}'
@@ -111,7 +111,7 @@ class Memoria:
         txt: str = f''
         cont: int = 0
         i: int = 0
-        print(f"\nMemoria =================================================")
+        print(f"\nMemoria ==================================================")
         while cont < self.tam:
             txt = f'{i*16:>3} - {i*16 + 15:>3}: '
             for j in range(16):
@@ -177,29 +177,35 @@ class Simulador:
     def blt(self, i: Instrucao) -> None:
         if self.pro.r[i.operandos[0]] < self.pro.r[i.operandos[1]]:
             self.pro.pc = int(i.operandos[2])
+            self.hazard = -1
             self.pro.pipeline.resetDesvio()
 
     def bgt(self, i: Instrucao) -> None:
         if self.pro.r[i.operandos[0]] > self.pro.r[i.operandos[1]]:
             self.pro.pc = int(i.operandos[2])
+            self.hazard = -1
             self.pro.pipeline.resetDesvio()
 
     def beq(self, i: Instrucao) -> None:
         if self.pro.r[i.operandos[0]] == self.pro.r[i.operandos[1]]:
             self.pro.pc = int(i.operandos[2])
+            self.hazard = -1
             self.pro.pipeline.resetDesvio()
 
     def j(self, i: Instrucao) -> None:
         self.pro.pc = int(i.operandos[0])
+        self.hazard = -1
         self.pro.pipeline.resetDesvio()
 
     def jr(self, i: Instrucao) -> None:
         self.pro.pc = self.pro.r[i.operandos[0]]
+        self.hazard = -1
         self.pro.pipeline.resetDesvio()
 
     def jal(self, i: Instrucao) -> None:
         self.pro.ra = self.pro.pc + 1
         self.pro.pc = int(i.operandos[0])
+        self.hazard = -1
         self.pro.pipeline.resetDesvio()
 
     # Memória
@@ -282,19 +288,24 @@ class Simulador:
             self.pro.pipeline.instr[2] = None
 
     # Faz a decodificação de instrução.
+    # Se houver hazard, não é executado.
     def __decoInst(self) -> None:
-        if type(self.pro.pipeline.instr[1]) is str:
-            self.pro.pipeline.instr[2] = Instrucao(self.pro.pipeline.instr[1])
-            self.pro.pipeline.instr[1] = None
+        if self.hazard == -1:
+            if type(self.pro.pipeline.instr[1]) is str:
+                self.pro.pipeline.instr[2] = Instrucao(
+                    self.pro.pipeline.instr[1])
+                self.pro.pipeline.instr[1] = None
 
     # Faz a busca de instrução.
+    # Se houver hazard, não é executado.
     def __buscaInst(self) -> None:
-        self.pro.pipeline.instr[1] = self.pro.pipeline.instr[0]
-        if self.pro.pc < len(self.mem.instrucoes):
-            self.pro.pipeline.instr[0] = self.mem.instrucoes[self.pro.pc]
-            self.pro.pc += 1
-        else:
-            self.pro.pipeline.instr[0] = None
+        if self.hazard == -1:
+            self.pro.pipeline.instr[1] = self.pro.pipeline.instr[0]
+            if self.pro.pc < len(self.mem.instrucoes):
+                self.pro.pipeline.instr[0] = self.mem.instrucoes[self.pro.pc]
+                self.pro.pc += 1
+            else:
+                self.pro.pipeline.instr[0] = None
 
     # Veirfica a existência de hazards de dados na pipeline.
     # Se houver hazard, guarda o índice do estágio em que se encontra o hazard
@@ -326,19 +337,15 @@ class Simulador:
     # do hazard.
     def avanca(self) -> None:
         # Se não existe hazard
-        if self.hazard == -1:
-            self.__escritaRes()
-            self.__acessoMem()
-            self.__execucao()
-            self.__decoInst()
-            self.__buscaInst()
+        self.__escritaRes()
+        self.__acessoMem()
+        self.__execucao()
+        self.__decoInst()
+        self.__buscaInst()
 
+        if self.hazard == -1:
             self.__existeHazard()
         else:
-            self.__escritaRes()
-            self.__acessoMem()
-            self.__execucao()
-
             if self.hazard == 4:
                 self.hazard = -1
             else:
@@ -349,6 +356,12 @@ class Simulador:
         self.mem.printEstado()
         self.pro.printEstado()
         self.pro.pipeline.printEstado()
+        print(f'\nHazard: ', end='')
+        if self.hazard == -1:
+            print(f'-')
+        else:
+            print(
+                f'{self.pro.pipeline.instr[1]}, {self.pro.pipeline.instr[self.hazard].string}')
 
     # Retorna True se existe instruções na pipeline, False caso contrário.
     def status(self) -> bool:
